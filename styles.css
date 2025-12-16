@@ -665,6 +665,58 @@ input[type="number"] {
     color: var(--danger);
 }
 
+.btn-icon.btn-move {
+    opacity: 1;
+}
+
+.btn-icon.btn-move:hover {
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--accent-light);
+}
+
+/* Carryover Section */
+.carryover-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px dashed var(--border-light);
+}
+
+.carryover-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 0 4px;
+}
+
+.carryover-header span:first-child {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.carryover-count {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    color: var(--text-muted);
+}
+
+.task-item.carryover {
+    opacity: 0.7;
+    border-style: dashed;
+}
+
+.task-item.carryover:hover {
+    opacity: 1;
+}
+
+.task-item.carryover .task-actions {
+    opacity: 1;
+}
+
 /* Animations */
 @keyframes fadeIn {
     from {
