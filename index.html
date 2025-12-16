@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time-Tracking Todo List</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Time-Tracking Todo List</h1>
+            <div class="productivity-summary" id="productivitySummary">
+                <span>Today's Progress: <span id="todayProgress">0%</span></span>
+            </div>
+        </header>
+
+        <div class="add-task-form">
+            <input type="text" id="taskInput" placeholder="Enter a new task..." />
+            <input type="number" id="plannedTime" placeholder="Planned hours" min="0.5" step="0.5" />
+            <button id="addTaskBtn">Add Task</button>
+        </div>
+
+        <div class="tasks-container">
+            <div class="tasks-list" id="tasksList">
+                <!-- Tasks will be dynamically added here -->
+            </div>
+        </div>
+
+        <div class="analytics-panel">
+            <h2>16-Hour Productivity Analysis</h2>
+            <div class="analytics-grid">
+                <div class="stat-card">
+                    <h3>Total Tasks</h3>
+                    <span id="totalTasks">0</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Completed</h3>
+                    <span id="completedTasks">0</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Planned Time</h3>
+                    <span id="totalPlannedTime">0h</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Actual Time</h3>
+                    <span id="totalActualTime">0h</span>
+                </div>
+                <div class="stat-card">
+                    <h3>Efficiency</h3>
+                    <span id="efficiency">0%</span>
+                </div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
