@@ -406,12 +406,16 @@ class TaskTracker {
     updateAnalytics() {
         const todaysTasks = this.getTodaysTasks();
         const totalTasks = todaysTasks.length;
-        const completedTasks = todaysTasks.filter(task => task.completed).length;
+        const completedTasksList = todaysTasks.filter(task => task.completed);
+        const completedTasks = completedTasksList.length;
         const pendingTasks = totalTasks - completedTasks;
         const totalPlannedTime = todaysTasks.reduce((sum, task) => sum + task.plannedTime, 0);
         const totalActualTime = todaysTasks.reduce((sum, task) => sum + task.actualTime, 0);
 
-        const efficiency = totalActualTime > 0 ? Math.round((totalPlannedTime / totalActualTime) * 100) : 0;
+        // Efficiency only for completed tasks: planned vs actual
+        const completedPlanned = completedTasksList.reduce((sum, task) => sum + task.plannedTime, 0);
+        const completedActual = completedTasksList.reduce((sum, task) => sum + task.actualTime, 0);
+        const efficiency = completedActual > 0 ? Math.round((completedPlanned / completedActual) * 100) : 0;
         const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
         // Update sidebar stats
