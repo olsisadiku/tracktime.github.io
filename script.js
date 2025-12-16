@@ -19,6 +19,18 @@ class TaskTracker {
             if (e.key === 'Enter') this.addTask();
         });
 
+        this.plannedTimeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const newVal = Math.max(5, (parseFloat(e.target.value) || 0) + 5);
+                e.target.value = newVal;
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const newVal = Math.max(5, (parseFloat(e.target.value) || 0) - 5);
+                e.target.value = newVal;
+            }
+        });
+
         this.filterTabs.forEach(tab => {
             tab.addEventListener('click', () => this.setFilter(tab.dataset.filter));
         });
@@ -37,7 +49,7 @@ class TaskTracker {
 
     addTask() {
         const text = this.taskInput.value.trim();
-        const plannedTime = parseFloat(this.plannedTimeInput.value) || 1;
+        const plannedTime = parseFloat(this.plannedTimeInput.value) || 15;
 
         if (!text) {
             this.taskInput.focus();
@@ -92,7 +104,7 @@ class TaskTracker {
     updatePlannedTime(id, newTime) {
         const task = this.tasks.find(task => task.id === id);
         if (task) {
-            task.plannedTime = Math.max(0.5, parseFloat(newTime) || 0.5);
+            task.plannedTime = Math.max(5, parseFloat(newTime) || 5);
             this.saveTasks();
             this.updateAnalytics();
         }
@@ -183,12 +195,12 @@ class TaskTracker {
                 <div class="task-time-info">
                     <div class="time-input-group">
                         <input type="number" class="time-input planned-time"
-                               value="${task.plannedTime}" min="0.5" step="0.5">
+                               value="${task.plannedTime}" min="5" step="5">
                         <span class="time-label">Plan</span>
                     </div>
                     <div class="time-input-group">
                         <input type="number" class="time-input actual-time"
-                               value="${task.actualTime}" min="0" step="0.25">
+                               value="${task.actualTime}" min="0" step="5">
                         <span class="time-label">Actual</span>
                     </div>
                 </div>
@@ -223,8 +235,36 @@ class TaskTracker {
                 this.updatePlannedTime(task.id, e.target.value);
             });
 
+            plannedTimeInput.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const newVal = Math.max(5, (parseFloat(e.target.value) || 0) + 5);
+                    e.target.value = newVal;
+                    this.updatePlannedTime(task.id, newVal);
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const newVal = Math.max(5, (parseFloat(e.target.value) || 0) - 5);
+                    e.target.value = newVal;
+                    this.updatePlannedTime(task.id, newVal);
+                }
+            });
+
             actualTimeInput.addEventListener('change', (e) => {
                 this.updateActualTime(task.id, e.target.value);
+            });
+
+            actualTimeInput.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const newVal = Math.max(0, (parseFloat(e.target.value) || 0) + 5);
+                    e.target.value = newVal;
+                    this.updateActualTime(task.id, newVal);
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const newVal = Math.max(0, (parseFloat(e.target.value) || 0) - 5);
+                    e.target.value = newVal;
+                    this.updateActualTime(task.id, newVal);
+                }
             });
 
             this.tasksList.appendChild(taskElement);
@@ -252,9 +292,9 @@ class TaskTracker {
         // Update sidebar stats
         document.getElementById('completedTasks').textContent = completedTasks;
         document.getElementById('pendingTasks').textContent = pendingTasks;
-        document.getElementById('totalHours').textContent = totalActualTime.toFixed(1) + 'h';
-        document.getElementById('totalPlannedTime').textContent = totalPlannedTime.toFixed(1) + 'h';
-        document.getElementById('totalActualTime').textContent = totalActualTime.toFixed(1) + 'h';
+        document.getElementById('totalHours').textContent = Math.round(totalActualTime) + 'm';
+        document.getElementById('totalPlannedTime').textContent = Math.round(totalPlannedTime) + 'm';
+        document.getElementById('totalActualTime').textContent = Math.round(totalActualTime) + 'm';
         document.getElementById('efficiency').textContent = efficiency + '%';
         document.getElementById('todayProgress').textContent = completionRate + '%';
 
