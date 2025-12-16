@@ -1,6 +1,7 @@
 class TaskTracker {
     constructor() {
         this.tasks = this.loadTasks();
+        this.currentFilter = 'all';
         this.init();
         this.updateAnalytics();
     }
@@ -11,11 +12,15 @@ class TaskTracker {
         this.addTaskBtn = document.getElementById('addTaskBtn');
         this.tasksList = document.getElementById('tasksList');
         this.emptyState = document.getElementById('emptyState');
-        this.taskCount = document.getElementById('taskCount');
+        this.filterTabs = document.querySelectorAll('.filter-tab');
 
         this.addTaskBtn.addEventListener('click', () => this.addTask());
         this.taskInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.addTask();
+        });
+
+        this.filterTabs.forEach(tab => {
+            tab.addEventListener('click', () => this.setFilter(tab.dataset.filter));
         });
 
         this.renderTasks();
@@ -111,22 +116,59 @@ class TaskTracker {
         return div.innerHTML;
     }
 
+    setFilter(filter) {
+        this.currentFilter = filter;
+        this.filterTabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.filter === filter);
+        });
+        this.renderTasks();
+    }
+
+    getFilteredTasks() {
+        switch (this.currentFilter) {
+            case 'active':
+                return this.tasks.filter(task => !task.completed);
+            case 'completed':
+                return this.tasks.filter(task => task.completed);
+            default:
+                return this.tasks;
+        }
+    }
+
     updateEmptyState() {
-        if (this.tasks.length === 0) {
+        const filteredTasks = this.getFilteredTasks();
+        if (filteredTasks.length === 0) {
             this.emptyState.style.display = 'flex';
+            const h3 = this.emptyState.querySelector('h3');
+            const p = this.emptyState.querySelector('p');
+
+            if (this.currentFilter === 'completed' && this.tasks.length > 0) {
+                h3.textContent = 'No completed tasks';
+                p.textContent = 'Complete some tasks to see them here';
+            } else if (this.currentFilter === 'active' && this.tasks.length > 0) {
+                h3.textContent = 'All caught up!';
+                p.textContent = 'No active tasks remaining';
+            } else {
+                h3.textContent = 'No tasks yet';
+                p.textContent = 'Add your first task to get started';
+            }
         } else {
             this.emptyState.style.display = 'none';
         }
 
-        const taskText = this.tasks.length === 1 ? 'task' : 'tasks';
-        this.taskCount.textContent = `${this.tasks.length} ${taskText}`;
+        // Update tab counts
+        document.getElementById('allCount').textContent = this.tasks.length;
+        document.getElementById('activeCount').textContent = this.tasks.filter(t => !t.completed).length;
+        document.getElementById('completedCount').textContent = this.tasks.filter(t => t.completed).length;
     }
 
     renderTasks() {
         const existingTasks = this.tasksList.querySelectorAll('.task-item');
         existingTasks.forEach(task => task.remove());
 
-        this.tasks.forEach(task => {
+        const filteredTasks = this.getFilteredTasks();
+
+        filteredTasks.forEach(task => {
             const taskElement = document.createElement('div');
             taskElement.className = `task-item ${task.completed ? 'completed' : ''}`;
 
@@ -200,41 +242,47 @@ class TaskTracker {
         const recentTasks = this.getTasksInLast16Hours();
         const totalTasks = recentTasks.length;
         const completedTasks = recentTasks.filter(task => task.completed).length;
+        const pendingTasks = totalTasks - completedTasks;
         const totalPlannedTime = recentTasks.reduce((sum, task) => sum + task.plannedTime, 0);
         const totalActualTime = recentTasks.reduce((sum, task) => sum + task.actualTime, 0);
 
-        const efficiency = totalPlannedTime > 0 ? Math.round((totalPlannedTime / Math.max(totalActualTime, 0.1)) * 100) : 0;
+        const efficiency = totalActualTime > 0 ? Math.round((totalPlannedTime / totalActualTime) * 100) : 0;
         const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-        const progressPercentage = Math.min(100, totalTasks > 0 ?
-            Math.round(((completedTasks / totalTasks) * 0.7 + (Math.min(efficiency, 100) / 100) * 0.3) * 100) : 0);
-
-        document.getElementById('totalTasks').textContent = totalTasks;
+        // Update sidebar stats
         document.getElementById('completedTasks').textContent = completedTasks;
+        document.getElementById('pendingTasks').textContent = pendingTasks;
+        document.getElementById('totalHours').textContent = totalActualTime.toFixed(1) + 'h';
         document.getElementById('totalPlannedTime').textContent = totalPlannedTime.toFixed(1) + 'h';
         document.getElementById('totalActualTime').textContent = totalActualTime.toFixed(1) + 'h';
         document.getElementById('efficiency').textContent = efficiency + '%';
         document.getElementById('todayProgress').textContent = completionRate + '%';
-        document.getElementById('progressFill').style.width = progressPercentage + '%';
 
-        this.updateProgressColor(progressPercentage);
+        // Update progress ring
+        this.updateProgressRing(completionRate);
     }
 
-    updateProgressColor(percentage) {
-        const progressFill = document.getElementById('progressFill');
-        let gradient;
+    updateProgressRing(percentage) {
+        const progressRing = document.getElementById('progressRing');
+        const circumference = 2 * Math.PI * 52; // r=52
+        const offset = circumference - (percentage / 100) * circumference;
 
+        progressRing.style.strokeDasharray = circumference;
+        progressRing.style.strokeDashoffset = offset;
+
+        // Update color based on percentage
+        let color;
         if (percentage >= 80) {
-            gradient = 'linear-gradient(90deg, #22c55e, #4ade80)';
+            color = '#22c55e'; // green
         } else if (percentage >= 60) {
-            gradient = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+            color = '#eab308'; // yellow
         } else if (percentage >= 40) {
-            gradient = 'linear-gradient(90deg, #ef4444, #f87171)';
+            color = '#f97316'; // orange
         } else {
-            gradient = 'linear-gradient(90deg, #6366f1, #818cf8)';
+            color = '#8b5cf6'; // purple (accent)
         }
 
-        progressFill.style.background = gradient;
+        progressRing.style.stroke = color;
     }
 }
 
