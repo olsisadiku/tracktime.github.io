@@ -1,9 +1,55 @@
 class TaskTracker {
     constructor() {
-        this.tasks = this.loadTasks();
+        this.tasks = [];
         this.currentFilter = 'all';
+        this.db = null;
+        this.tasksCollection = null;
+        this.useFirebase = false;
+
+        this.initFirebase();
+    }
+
+    async initFirebase() {
+        // Check if Firebase config exists
+        if (typeof firebaseConfig !== 'undefined' && firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY') {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                this.db = firebase.firestore();
+                this.tasksCollection = this.db.collection('tasks');
+                this.useFirebase = true;
+                console.log('Firebase connected');
+
+                // Listen for real-time updates
+                this.tasksCollection.orderBy('createdAt', 'desc').onSnapshot((snapshot) => {
+                    this.tasks = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    this.renderTasks();
+                    this.updateAnalytics();
+                });
+            } catch (error) {
+                console.warn('Firebase init failed, using localStorage:', error);
+                this.useFirebase = false;
+                this.loadFromLocalStorage();
+            }
+        } else {
+            console.log('No Firebase config found, using localStorage');
+            this.loadFromLocalStorage();
+        }
+
         this.init();
+    }
+
+    loadFromLocalStorage() {
+        const saved = localStorage.getItem('time-tracker-tasks');
+        this.tasks = saved ? JSON.parse(saved) : [];
+        this.renderTasks();
         this.updateAnalytics();
+    }
+
+    saveToLocalStorage() {
+        localStorage.setItem('time-tracker-tasks', JSON.stringify(this.tasks));
     }
 
     getToday() {
@@ -43,19 +89,13 @@ class TaskTracker {
             tab.addEventListener('click', () => this.setFilter(tab.dataset.filter));
         });
 
-        this.renderTasks();
+        if (!this.useFirebase) {
+            this.renderTasks();
+            this.updateAnalytics();
+        }
     }
 
-    loadTasks() {
-        const saved = localStorage.getItem('time-tracker-tasks');
-        return saved ? JSON.parse(saved) : [];
-    }
-
-    saveTasks() {
-        localStorage.setItem('time-tracker-tasks', JSON.stringify(this.tasks));
-    }
-
-    addTask() {
+    async addTask() {
         const text = this.taskInput.value.trim();
         const plannedTime = parseFloat(this.plannedTimeInput.value) || 15;
         const taskDate = this.taskDateInput.value || this.getToday();
@@ -66,7 +106,6 @@ class TaskTracker {
         }
 
         const task = {
-            id: Date.now(),
             text,
             plannedTime,
             actualTime: 0,
@@ -75,10 +114,19 @@ class TaskTracker {
             createdAt: new Date().toISOString()
         };
 
-        this.tasks.unshift(task);
-        this.saveTasks();
-        this.renderTasks();
-        this.updateAnalytics();
+        if (this.useFirebase) {
+            try {
+                await this.tasksCollection.add(task);
+            } catch (error) {
+                console.error('Error adding task:', error);
+            }
+        } else {
+            task.id = Date.now().toString();
+            this.tasks.unshift(task);
+            this.saveToLocalStorage();
+            this.renderTasks();
+            this.updateAnalytics();
+        }
 
         this.taskInput.value = '';
         this.plannedTimeInput.value = '';
@@ -86,60 +134,116 @@ class TaskTracker {
         this.taskInput.focus();
     }
 
-    deleteTask(id) {
-        this.tasks = this.tasks.filter(task => task.id !== id);
-        this.saveTasks();
-        this.renderTasks();
-        this.updateAnalytics();
+    async deleteTask(id) {
+        if (this.useFirebase) {
+            try {
+                await this.tasksCollection.doc(id).delete();
+            } catch (error) {
+                console.error('Error deleting task:', error);
+            }
+        } else {
+            this.tasks = this.tasks.filter(task => task.id !== id);
+            this.saveToLocalStorage();
+            this.renderTasks();
+            this.updateAnalytics();
+        }
     }
 
-    toggleComplete(id) {
+    async toggleComplete(id) {
         const task = this.tasks.find(task => task.id === id);
-        if (task) {
+        if (!task) return;
+
+        if (this.useFirebase) {
+            try {
+                await this.tasksCollection.doc(id).update({
+                    completed: !task.completed
+                });
+            } catch (error) {
+                console.error('Error toggling task:', error);
+            }
+        } else {
             task.completed = !task.completed;
-            this.saveTasks();
+            this.saveToLocalStorage();
             this.renderTasks();
             this.updateAnalytics();
         }
     }
 
-    updateActualTime(id, newTime) {
+    async updateActualTime(id, newTime) {
         const task = this.tasks.find(task => task.id === id);
-        if (task) {
-            task.actualTime = Math.max(0, parseFloat(newTime) || 0);
-            this.saveTasks();
+        if (!task) return;
+
+        const actualTime = Math.max(0, parseFloat(newTime) || 0);
+
+        if (this.useFirebase) {
+            try {
+                await this.tasksCollection.doc(id).update({ actualTime });
+            } catch (error) {
+                console.error('Error updating actual time:', error);
+            }
+        } else {
+            task.actualTime = actualTime;
+            this.saveToLocalStorage();
             this.updateAnalytics();
         }
     }
 
-    updatePlannedTime(id, newTime) {
+    async updatePlannedTime(id, newTime) {
         const task = this.tasks.find(task => task.id === id);
-        if (task) {
-            task.plannedTime = Math.max(5, parseFloat(newTime) || 5);
-            this.saveTasks();
+        if (!task) return;
+
+        const plannedTime = Math.max(5, parseFloat(newTime) || 5);
+
+        if (this.useFirebase) {
+            try {
+                await this.tasksCollection.doc(id).update({ plannedTime });
+            } catch (error) {
+                console.error('Error updating planned time:', error);
+            }
+        } else {
+            task.plannedTime = plannedTime;
+            this.saveToLocalStorage();
             this.updateAnalytics();
         }
     }
 
-    moveToToday(id) {
+    async moveToToday(id) {
         const task = this.tasks.find(task => task.id === id);
-        if (task) {
-            task.date = this.getToday();
-            this.saveTasks();
+        if (!task) return;
+
+        const today = this.getToday();
+
+        if (this.useFirebase) {
+            try {
+                await this.tasksCollection.doc(id).update({ date: today });
+            } catch (error) {
+                console.error('Error moving task:', error);
+            }
+        } else {
+            task.date = today;
+            this.saveToLocalStorage();
             this.renderTasks();
             this.updateAnalytics();
         }
     }
 
-    editTask(id) {
+    async editTask(id) {
         const task = this.tasks.find(task => task.id === id);
         if (!task) return;
 
         const newText = prompt('Edit task:', task.text);
         if (newText !== null && newText.trim()) {
-            task.text = newText.trim();
-            this.saveTasks();
-            this.renderTasks();
+            if (this.useFirebase) {
+                try {
+                    await this.tasksCollection.doc(id).update({ text: newText.trim() });
+                } catch (error) {
+                    console.error('Error editing task:', error);
+                }
+            } else {
+                task.text = newText.trim();
+                this.saveToLocalStorage();
+                this.renderTasks();
+            }
         }
     }
 
@@ -187,8 +291,9 @@ class TaskTracker {
     updateEmptyState() {
         const filteredTasks = this.getFilteredTasks();
         const carryoverTasks = this.getCarryoverTasks();
+        const scheduledTasks = this.getScheduledTasks();
 
-        if (filteredTasks.length === 0 && carryoverTasks.length === 0) {
+        if (filteredTasks.length === 0 && carryoverTasks.length === 0 && scheduledTasks.length === 0) {
             this.emptyState.style.display = 'flex';
             const h3 = this.emptyState.querySelector('h3');
             const p = this.emptyState.querySelector('p');
