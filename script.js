@@ -1,55 +1,9 @@
 class TaskTracker {
     constructor() {
-        this.tasks = [];
+        this.tasks = this.loadTasks();
         this.currentFilter = 'all';
-        this.db = null;
-        this.tasksCollection = null;
-        this.useFirebase = false;
-
-        this.initFirebase();
-    }
-
-    async initFirebase() {
-        // Check if Firebase config exists
-        if (typeof firebaseConfig !== 'undefined' && firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY') {
-            try {
-                firebase.initializeApp(firebaseConfig);
-                this.db = firebase.firestore();
-                this.tasksCollection = this.db.collection('tasks');
-                this.useFirebase = true;
-                console.log('Firebase connected');
-
-                // Listen for real-time updates
-                this.tasksCollection.orderBy('createdAt', 'desc').onSnapshot((snapshot) => {
-                    this.tasks = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    }));
-                    this.renderTasks();
-                    this.updateAnalytics();
-                });
-            } catch (error) {
-                console.warn('Firebase init failed, using localStorage:', error);
-                this.useFirebase = false;
-                this.loadFromLocalStorage();
-            }
-        } else {
-            console.log('No Firebase config found, using localStorage');
-            this.loadFromLocalStorage();
-        }
-
         this.init();
-    }
-
-    loadFromLocalStorage() {
-        const saved = localStorage.getItem('time-tracker-tasks');
-        this.tasks = saved ? JSON.parse(saved) : [];
-        this.renderTasks();
         this.updateAnalytics();
-    }
-
-    saveToLocalStorage() {
-        localStorage.setItem('time-tracker-tasks', JSON.stringify(this.tasks));
     }
 
     getToday() {
@@ -65,7 +19,6 @@ class TaskTracker {
         this.emptyState = document.getElementById('emptyState');
         this.filterTabs = document.querySelectorAll('.filter-tab');
 
-        // Set default date to today
         this.taskDateInput.value = this.getToday();
 
         this.addTaskBtn.addEventListener('click', () => this.addTask());
@@ -89,13 +42,19 @@ class TaskTracker {
             tab.addEventListener('click', () => this.setFilter(tab.dataset.filter));
         });
 
-        if (!this.useFirebase) {
-            this.renderTasks();
-            this.updateAnalytics();
-        }
+        this.renderTasks();
     }
 
-    async addTask() {
+    loadTasks() {
+        const saved = localStorage.getItem('time-tracker-tasks');
+        return saved ? JSON.parse(saved) : [];
+    }
+
+    saveTasks() {
+        localStorage.setItem('time-tracker-tasks', JSON.stringify(this.tasks));
+    }
+
+    addTask() {
         const text = this.taskInput.value.trim();
         const plannedTime = parseFloat(this.plannedTimeInput.value) || 15;
         const taskDate = this.taskDateInput.value || this.getToday();
@@ -106,6 +65,7 @@ class TaskTracker {
         }
 
         const task = {
+            id: Date.now(),
             text,
             plannedTime,
             actualTime: 0,
@@ -114,19 +74,10 @@ class TaskTracker {
             createdAt: new Date().toISOString()
         };
 
-        if (this.useFirebase) {
-            try {
-                await this.tasksCollection.add(task);
-            } catch (error) {
-                console.error('Error adding task:', error);
-            }
-        } else {
-            task.id = Date.now().toString();
-            this.tasks.unshift(task);
-            this.saveToLocalStorage();
-            this.renderTasks();
-            this.updateAnalytics();
-        }
+        this.tasks.unshift(task);
+        this.saveTasks();
+        this.renderTasks();
+        this.updateAnalytics();
 
         this.taskInput.value = '';
         this.plannedTimeInput.value = '';
@@ -134,116 +85,60 @@ class TaskTracker {
         this.taskInput.focus();
     }
 
-    async deleteTask(id) {
-        if (this.useFirebase) {
-            try {
-                await this.tasksCollection.doc(id).delete();
-            } catch (error) {
-                console.error('Error deleting task:', error);
-            }
-        } else {
-            this.tasks = this.tasks.filter(task => task.id !== id);
-            this.saveToLocalStorage();
-            this.renderTasks();
-            this.updateAnalytics();
-        }
+    deleteTask(id) {
+        this.tasks = this.tasks.filter(task => task.id !== id);
+        this.saveTasks();
+        this.renderTasks();
+        this.updateAnalytics();
     }
 
-    async toggleComplete(id) {
+    toggleComplete(id) {
         const task = this.tasks.find(task => task.id === id);
-        if (!task) return;
-
-        if (this.useFirebase) {
-            try {
-                await this.tasksCollection.doc(id).update({
-                    completed: !task.completed
-                });
-            } catch (error) {
-                console.error('Error toggling task:', error);
-            }
-        } else {
+        if (task) {
             task.completed = !task.completed;
-            this.saveToLocalStorage();
+            this.saveTasks();
             this.renderTasks();
             this.updateAnalytics();
         }
     }
 
-    async updateActualTime(id, newTime) {
+    updateActualTime(id, newTime) {
         const task = this.tasks.find(task => task.id === id);
-        if (!task) return;
-
-        const actualTime = Math.max(0, parseFloat(newTime) || 0);
-
-        if (this.useFirebase) {
-            try {
-                await this.tasksCollection.doc(id).update({ actualTime });
-            } catch (error) {
-                console.error('Error updating actual time:', error);
-            }
-        } else {
-            task.actualTime = actualTime;
-            this.saveToLocalStorage();
+        if (task) {
+            task.actualTime = Math.max(0, parseFloat(newTime) || 0);
+            this.saveTasks();
             this.updateAnalytics();
         }
     }
 
-    async updatePlannedTime(id, newTime) {
+    updatePlannedTime(id, newTime) {
         const task = this.tasks.find(task => task.id === id);
-        if (!task) return;
-
-        const plannedTime = Math.max(5, parseFloat(newTime) || 5);
-
-        if (this.useFirebase) {
-            try {
-                await this.tasksCollection.doc(id).update({ plannedTime });
-            } catch (error) {
-                console.error('Error updating planned time:', error);
-            }
-        } else {
-            task.plannedTime = plannedTime;
-            this.saveToLocalStorage();
+        if (task) {
+            task.plannedTime = Math.max(5, parseFloat(newTime) || 5);
+            this.saveTasks();
             this.updateAnalytics();
         }
     }
 
-    async moveToToday(id) {
+    moveToToday(id) {
         const task = this.tasks.find(task => task.id === id);
-        if (!task) return;
-
-        const today = this.getToday();
-
-        if (this.useFirebase) {
-            try {
-                await this.tasksCollection.doc(id).update({ date: today });
-            } catch (error) {
-                console.error('Error moving task:', error);
-            }
-        } else {
-            task.date = today;
-            this.saveToLocalStorage();
+        if (task) {
+            task.date = this.getToday();
+            this.saveTasks();
             this.renderTasks();
             this.updateAnalytics();
         }
     }
 
-    async editTask(id) {
+    editTask(id) {
         const task = this.tasks.find(task => task.id === id);
         if (!task) return;
 
         const newText = prompt('Edit task:', task.text);
         if (newText !== null && newText.trim()) {
-            if (this.useFirebase) {
-                try {
-                    await this.tasksCollection.doc(id).update({ text: newText.trim() });
-                } catch (error) {
-                    console.error('Error editing task:', error);
-                }
-            } else {
-                task.text = newText.trim();
-                this.saveToLocalStorage();
-                this.renderTasks();
-            }
+            task.text = newText.trim();
+            this.saveTasks();
+            this.renderTasks();
         }
     }
 
@@ -313,26 +208,23 @@ class TaskTracker {
             this.emptyState.style.display = 'none';
         }
 
-        // Update tab counts (today's tasks only)
         const todaysTasks = this.getTodaysTasks();
         document.getElementById('allCount').textContent = todaysTasks.length;
         document.getElementById('activeCount').textContent = todaysTasks.filter(t => !t.completed).length;
         document.getElementById('completedCount').textContent = todaysTasks.filter(t => t.completed).length;
     }
 
+    formatDate(dateStr) {
+        const date = new Date(dateStr + 'T00:00:00');
+        const options = { weekday: 'short', month: 'short', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
+    }
+
     createTaskElement(task, isCarryover = false, isScheduled = false) {
         const taskElement = document.createElement('div');
         taskElement.className = `task-item ${task.completed ? 'completed' : ''} ${isCarryover ? 'carryover' : ''} ${isScheduled ? 'scheduled' : ''}`;
 
-        const carryoverAction = isCarryover ? `
-            <button class="btn-icon btn-move" title="Move to today">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-            </button>
-        ` : '';
-
-        const scheduledAction = isScheduled ? `
+        const moveAction = (isCarryover || isScheduled) ? `
             <button class="btn-icon btn-move" title="Move to today">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -365,7 +257,7 @@ class TaskTracker {
                 </div>
             </div>
             <div class="task-actions">
-                ${carryoverAction}${scheduledAction}
+                ${moveAction}
                 <button class="btn-icon btn-edit" title="Edit task">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
@@ -449,14 +341,7 @@ class TaskTracker {
         return taskElement;
     }
 
-    formatDate(dateStr) {
-        const date = new Date(dateStr + 'T00:00:00');
-        const options = { weekday: 'short', month: 'short', day: 'numeric' };
-        return date.toLocaleDateString('en-US', options);
-    }
-
     renderTasks() {
-        // Clear existing tasks and sections
         const existingTasks = this.tasksList.querySelectorAll('.task-item, .carryover-section, .scheduled-section');
         existingTasks.forEach(el => el.remove());
 
@@ -464,12 +349,10 @@ class TaskTracker {
         const carryoverTasks = this.getCarryoverTasks();
         const scheduledTasks = this.getScheduledTasks();
 
-        // Render today's tasks
         filteredTasks.forEach(task => {
             this.tasksList.appendChild(this.createTaskElement(task, false, false));
         });
 
-        // Render carryover section if there are incomplete tasks from previous days
         if (carryoverTasks.length > 0 && this.currentFilter !== 'completed') {
             const carryoverSection = document.createElement('div');
             carryoverSection.className = 'carryover-section';
@@ -486,7 +369,6 @@ class TaskTracker {
             });
         }
 
-        // Render scheduled section if there are future tasks
         if (scheduledTasks.length > 0 && this.currentFilter !== 'completed') {
             const scheduledSection = document.createElement('div');
             scheduledSection.className = 'scheduled-section';
@@ -498,7 +380,6 @@ class TaskTracker {
             `;
             this.tasksList.appendChild(scheduledSection);
 
-            // Sort by date
             const sortedScheduled = [...scheduledTasks].sort((a, b) => a.date.localeCompare(b.date));
             sortedScheduled.forEach(task => {
                 this.tasksList.appendChild(this.createTaskElement(task, false, true));
@@ -517,13 +398,11 @@ class TaskTracker {
         const totalPlannedTime = todaysTasks.reduce((sum, task) => sum + task.plannedTime, 0);
         const totalActualTime = todaysTasks.reduce((sum, task) => sum + task.actualTime, 0);
 
-        // Efficiency only for completed tasks: planned vs actual
         const completedPlanned = completedTasksList.reduce((sum, task) => sum + task.plannedTime, 0);
         const completedActual = completedTasksList.reduce((sum, task) => sum + task.actualTime, 0);
         const efficiency = completedActual > 0 ? Math.round((completedPlanned / completedActual) * 100) : 0;
         const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-        // Update sidebar stats
         document.getElementById('completedTasks').textContent = completedTasks;
         document.getElementById('pendingTasks').textContent = pendingTasks;
         document.getElementById('totalHours').textContent = Math.round(totalActualTime) + 'm';
@@ -532,28 +411,26 @@ class TaskTracker {
         document.getElementById('efficiency').textContent = efficiency + '%';
         document.getElementById('todayProgress').textContent = completionRate + '%';
 
-        // Update progress ring
         this.updateProgressRing(completionRate);
     }
 
     updateProgressRing(percentage) {
         const progressRing = document.getElementById('progressRing');
-        const circumference = 2 * Math.PI * 52; // r=52
+        const circumference = 2 * Math.PI * 52;
         const offset = circumference - (percentage / 100) * circumference;
 
         progressRing.style.strokeDasharray = circumference;
         progressRing.style.strokeDashoffset = offset;
 
-        // Update color based on percentage
         let color;
         if (percentage >= 80) {
-            color = '#22c55e'; // green
+            color = '#22c55e';
         } else if (percentage >= 60) {
-            color = '#eab308'; // yellow
+            color = '#eab308';
         } else if (percentage >= 40) {
-            color = '#f97316'; // orange
+            color = '#f97316';
         } else {
-            color = '#8b5cf6'; // purple (accent)
+            color = '#8b5cf6';
         }
 
         progressRing.style.stroke = color;
