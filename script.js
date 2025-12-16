@@ -198,9 +198,10 @@ class TaskTracker {
                                value="${task.plannedTime}" min="5" step="5">
                         <span class="time-label">Plan</span>
                     </div>
-                    <div class="time-input-group">
+                    <div class="time-input-group actual-group">
                         <input type="number" class="time-input actual-time"
                                value="${task.actualTime}" min="0" step="5">
+                        <button class="btn-add-time" title="Add session time">+</button>
                         <span class="time-label">Actual</span>
                     </div>
                 </div>
@@ -226,10 +227,23 @@ class TaskTracker {
             const deleteBtn = taskElement.querySelector('.btn-delete');
             const plannedTimeInput = taskElement.querySelector('.planned-time');
             const actualTimeInput = taskElement.querySelector('.actual-time');
+            const addTimeBtn = taskElement.querySelector('.btn-add-time');
 
             checkbox.addEventListener('change', () => this.toggleComplete(task.id));
             editBtn.addEventListener('click', () => this.editTask(task.id));
             deleteBtn.addEventListener('click', () => this.deleteTask(task.id));
+
+            addTimeBtn.addEventListener('click', () => {
+                const timeToAdd = prompt('Minutes to add:');
+                if (timeToAdd !== null && timeToAdd.trim() !== '') {
+                    const minutes = parseFloat(timeToAdd);
+                    if (!isNaN(minutes) && minutes > 0) {
+                        const newTotal = task.actualTime + minutes;
+                        actualTimeInput.value = newTotal;
+                        this.updateActualTime(task.id, newTotal);
+                    }
+                }
+            });
 
             plannedTimeInput.addEventListener('change', (e) => {
                 this.updatePlannedTime(task.id, e.target.value);
