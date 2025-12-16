@@ -13,10 +13,14 @@ class TaskTracker {
     init() {
         this.taskInput = document.getElementById('taskInput');
         this.plannedTimeInput = document.getElementById('plannedTime');
+        this.taskDateInput = document.getElementById('taskDate');
         this.addTaskBtn = document.getElementById('addTaskBtn');
         this.tasksList = document.getElementById('tasksList');
         this.emptyState = document.getElementById('emptyState');
         this.filterTabs = document.querySelectorAll('.filter-tab');
+
+        // Set default date to today
+        this.taskDateInput.value = this.getToday();
 
         this.addTaskBtn.addEventListener('click', () => this.addTask());
         this.taskInput.addEventListener('keypress', (e) => {
@@ -54,6 +58,7 @@ class TaskTracker {
     addTask() {
         const text = this.taskInput.value.trim();
         const plannedTime = parseFloat(this.plannedTimeInput.value) || 15;
+        const taskDate = this.taskDateInput.value || this.getToday();
 
         if (!text) {
             this.taskInput.focus();
@@ -66,7 +71,7 @@ class TaskTracker {
             plannedTime,
             actualTime: 0,
             completed: false,
-            date: this.getToday(),
+            date: taskDate,
             createdAt: new Date().toISOString()
         };
 
@@ -77,6 +82,7 @@ class TaskTracker {
 
         this.taskInput.value = '';
         this.plannedTimeInput.value = '';
+        this.taskDateInput.value = this.getToday();
         this.taskInput.focus();
     }
 
@@ -161,6 +167,11 @@ class TaskTracker {
         return this.tasks.filter(task => task.date && task.date < today && !task.completed);
     }
 
+    getScheduledTasks() {
+        const today = this.getToday();
+        return this.tasks.filter(task => task.date && task.date > today);
+    }
+
     getFilteredTasks() {
         const todaysTasks = this.getTodaysTasks();
         switch (this.currentFilter) {
@@ -204,9 +215,9 @@ class TaskTracker {
         document.getElementById('completedCount').textContent = todaysTasks.filter(t => t.completed).length;
     }
 
-    createTaskElement(task, isCarryover = false) {
+    createTaskElement(task, isCarryover = false, isScheduled = false) {
         const taskElement = document.createElement('div');
-        taskElement.className = `task-item ${task.completed ? 'completed' : ''} ${isCarryover ? 'carryover' : ''}`;
+        taskElement.className = `task-item ${task.completed ? 'completed' : ''} ${isCarryover ? 'carryover' : ''} ${isScheduled ? 'scheduled' : ''}`;
 
         const carryoverAction = isCarryover ? `
             <button class="btn-icon btn-move" title="Move to today">
@@ -216,6 +227,16 @@ class TaskTracker {
             </button>
         ` : '';
 
+        const scheduledAction = isScheduled ? `
+            <button class="btn-icon btn-move" title="Move to today">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </button>
+        ` : '';
+
+        const dateLabel = isScheduled ? `<span class="task-date">${this.formatDate(task.date)}</span>` : '';
+
         taskElement.innerHTML = `
             <label class="task-checkbox">
                 <input type="checkbox" ${task.completed ? 'checked' : ''}>
@@ -223,6 +244,7 @@ class TaskTracker {
             </label>
             <div class="task-content">
                 <span class="task-text">${this.escapeHtml(task.text)}</span>
+                ${dateLabel}
             </div>
             <div class="task-time-info">
                 <div class="time-input-group">
@@ -238,7 +260,7 @@ class TaskTracker {
                 </div>
             </div>
             <div class="task-actions">
-                ${carryoverAction}
+                ${carryoverAction}${scheduledAction}
                 <button class="btn-icon btn-edit" title="Edit task">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
@@ -322,17 +344,24 @@ class TaskTracker {
         return taskElement;
     }
 
+    formatDate(dateStr) {
+        const date = new Date(dateStr + 'T00:00:00');
+        const options = { weekday: 'short', month: 'short', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
+    }
+
     renderTasks() {
         // Clear existing tasks and sections
-        const existingTasks = this.tasksList.querySelectorAll('.task-item, .carryover-section');
+        const existingTasks = this.tasksList.querySelectorAll('.task-item, .carryover-section, .scheduled-section');
         existingTasks.forEach(el => el.remove());
 
         const filteredTasks = this.getFilteredTasks();
         const carryoverTasks = this.getCarryoverTasks();
+        const scheduledTasks = this.getScheduledTasks();
 
         // Render today's tasks
         filteredTasks.forEach(task => {
-            this.tasksList.appendChild(this.createTaskElement(task, false));
+            this.tasksList.appendChild(this.createTaskElement(task, false, false));
         });
 
         // Render carryover section if there are incomplete tasks from previous days
@@ -348,7 +377,26 @@ class TaskTracker {
             this.tasksList.appendChild(carryoverSection);
 
             carryoverTasks.forEach(task => {
-                this.tasksList.appendChild(this.createTaskElement(task, true));
+                this.tasksList.appendChild(this.createTaskElement(task, true, false));
+            });
+        }
+
+        // Render scheduled section if there are future tasks
+        if (scheduledTasks.length > 0 && this.currentFilter !== 'completed') {
+            const scheduledSection = document.createElement('div');
+            scheduledSection.className = 'scheduled-section';
+            scheduledSection.innerHTML = `
+                <div class="scheduled-header">
+                    <span>Scheduled</span>
+                    <span class="scheduled-count">${scheduledTasks.length}</span>
+                </div>
+            `;
+            this.tasksList.appendChild(scheduledSection);
+
+            // Sort by date
+            const sortedScheduled = [...scheduledTasks].sort((a, b) => a.date.localeCompare(b.date));
+            sortedScheduled.forEach(task => {
+                this.tasksList.appendChild(this.createTaskElement(task, false, true));
             });
         }
 

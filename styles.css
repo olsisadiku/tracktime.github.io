@@ -335,6 +335,40 @@ body {
     color: var(--text-muted);
 }
 
+.date-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-tertiary);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+}
+
+.date-picker svg {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.date-picker input {
+    background: transparent;
+    border: none;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    font-family: inherit;
+    width: 120px;
+}
+
+.date-picker input:focus {
+    outline: none;
+}
+
+.date-picker input::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+    cursor: pointer;
+}
+
 .add-btn {
     width: 44px;
     height: 44px;
@@ -715,6 +749,57 @@ input[type="number"] {
 
 .task-item.carryover .task-actions {
     opacity: 1;
+}
+
+/* Scheduled Section */
+.scheduled-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px dashed var(--border-light);
+}
+
+.scheduled-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 0 4px;
+}
+
+.scheduled-header span:first-child {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.scheduled-count {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    color: var(--text-muted);
+}
+
+.task-item.scheduled {
+    opacity: 0.7;
+    border-color: var(--accent);
+    border-style: dashed;
+}
+
+.task-item.scheduled:hover {
+    opacity: 1;
+}
+
+.task-item.scheduled .task-actions {
+    opacity: 1;
+}
+
+.task-date {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--accent-light);
+    margin-top: 4px;
 }
 
 /* Animations */
